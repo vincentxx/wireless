@@ -1,0 +1,9 @@
+#config the predownload controller
+
+
+#some command to remmeber
+config boot backup      //show the boot images and backup images of the controller
+config ap image predownload primary all| $apName  //push the ap to predownload the controller's primary image, i.e, after the controller download new version image -> become primary
+config
+show ap image all   //view the ap's images: primary, backup, predownload
+
