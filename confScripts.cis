@@ -1,0 +1,249 @@
+#####Common configuration for specific controller products
+
+###Case: Initial configuration for 9800 CL
+Ref: https://www.cisco.com/c/en/us/td/docs/wireless/controller/technotes/8-8/b_c9800_wireless_controller_virtual_dg.html?referring_site=RE&pos=1&page=https://www.cisco.com/c/en/us/products/collateral/wireless/catalyst-9800-cl-wireless-controller-cloud/nb-06-cat9800-cl-cloud-wirel-data-sheet-ctp-en.html#id_91054
+
+###Base - factory setting [pasted]
+!
+! Last configuration change at 03:11:16 UTC Wed Dec 11 2019
+!
+version 16.12
+service timestamps debug datetime msec
+service timestamps log datetime msec
+! Call-home is enabled by Smart-Licensing.
+service call-home
+platform qfp utilization monitor load 80
+no platform punt-keepalive disable-kernel-core
+platform console virtual
+!
+boot-start-marker
+boot-end-marker
+!
+no aaa new-model
+vtp mode off
+call-home
+ ! If contact email address in call-home is configured as sch-smart-licensing@cisco.com
+ ! the email address configured in Cisco Smart License Portal will be used as contact email address to send SCH notifications.
+ contact-email-addr sch-smart-licensing@cisco.com
+ profile "CiscoTAC-1"
+  active
+  destination transport-method http
+  no destination transport-method email
+!
+login on-success log
+subscriber templating
+no device-tracking logging theft
+multilink bundle-name authenticated
+
+!
+license udi pid C9800-CL-K9 sn 9L4QMZFTK7Q
+diagnostic bootup level minimal
+memory free low-watermark processor 72749
+!
+!
+redundancy
+ mode sso
+!
+class-map match-any AVC-Reanchor-Class
+ match protocol cisco-jabber-audio
+ match protocol cisco-jabber-video
+ match protocol webex-media
+ match protocol webex-app-sharing
+ match protocol webex-control
+ match protocol webex-meeting
+ match protocol wifi-calling
+! 
+interface GigabitEthernet1
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet2
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet3
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+interface Vlan1
+ no mop enabled
+ no mop sysid
+!
+ip forward-protocol nd
+ip http server
+ip http authentication local
+ip http secure-server
+ip http client source-interface Vlan1
+!
+control-plane
+!
+line con 0
+ stopbits 1
+line vty 0 4
+ login local
+line vty 5 15
+ login local
+ transport input ssh
+!
+wireless aaa policy default-aaa-policy
+wireless cts-sxp profile default-sxp-profile
+wireless management interface Vlan1115
+wireless profile airtime-fairness default-atf-policy 0
+wireless profile flex default-flex-profile
+ description "default flex profile"
+wireless profile mesh default-mesh-profile
+ description "default mesh profile"
+wireless profile policy default-policy-profile
+ description "default policy profile"
+wireless tag site default-site-tag
+ description "default site tag"
+wireless tag policy default-policy-tag
+ description "default policy-tag"
+wireless tag rf default-rf-tag
+ description "default RF tag"
+wireless fabric control-plane default-control-plane
+ap dot11 24ghz rf-profile Low_Client_Density_rf_24gh
+ coverage data rssi threshold -90
+ coverage level 2
+ coverage voice rssi threshold -90
+ description "pre configured Low Client Density rfprofile for 2.4gh radio"
+ high-density rx-sop threshold low
+ tx-power v1 threshold -65
+ no shutdown
+ap dot11 24ghz rf-profile High_Client_Density_rf_24gh
+ description "pre configured High Client Density rfprofile for 2.4gh radio"
+ high-density rx-sop threshold medium
+ rate RATE_11M disable
+ rate RATE_12M mandatory
+ rate RATE_1M disable
+ rate RATE_2M disable
+ rate RATE_5_5M disable
+ rate RATE_6M disable
+ tx-power min 7
+ no shutdown
+ap dot11 24ghz rf-profile Typical_Client_Density_rf_24gh
+ description "pre configured Typical Client Density rfprofile for 2.4gh radio"
+ rate RATE_11M disable
+ rate RATE_12M mandatory
+ rate RATE_1M disable
+ rate RATE_2M disable
+ rate RATE_5_5M disable
+ rate RATE_6M disable
+ no shutdown
+ap dot11 5ghz rf-profile Low_Client_Density_rf_5gh
+ coverage data rssi threshold -90
+ coverage level 2
+ coverage voice rssi threshold -90
+ description "pre configured Low Client Density rfprofile for 5gh radio"
+ high-density rx-sop threshold low
+ tx-power v1 threshold -60
+ no shutdown
+ap dot11 5ghz rf-profile High_Client_Density_rf_5gh
+ description "pre configured High Client Density rfprofile for 5gh radio"
+ high-density rx-sop threshold medium
+ rate RATE_6M disable
+ rate RATE_9M disable
+ tx-power min 7
+ tx-power v1 threshold -65
+ no shutdown
+ap dot11 5ghz rf-profile Typical_Client_Density_rf_5gh
+ description "pre configured Typical Density rfprofile for 5gh radio"
+ no shutdown
+ap tag-source-priority 2 source filter
+ap tag-source-priority 3 source ap
+ap profile default-ap-profile
+ description "default ap profile"
+end
+
+###Declaration:
+$gi1=
+$gi1IP= 
+$gi1Mask= 
+$gi1
+
+$gi2=
+$gi2IP=
+$gi2Mask=
+
+$gi3= 
+$gi3IP=
+$gi3Mask=
+
+$hostName
+$user
+$pass
+$mgtVLAN
+$mgtMask
+$mgtGateway
+
+$spVLAN
+$spMask
+$spGateway
+
+$rpVLAN
+$country 
+
+
+
+#Script
+hostname $hostName
+username $user privilege 15 secret $pass
+!config g1 as service port, layer 3 port
+interface $gi1
+no switchport 
+ip address $gi1IP $gi1Mask
+no shutdown
+exit
+!tell where to control SP back and forth
+ip route $spNet $spMask $spGateway
+
+!config wireless mgt SVI interface
+vlan $mgtVLAN
+name $mgtName
+exit
+interface $mgtVLAN
+ip address $mgtIP $mgtMask 
+no shutdown
+exit
+
+!appoint interface for management
+wireless management interface vlan $mgtVLAN
+
+!config g2 as layer 2 trunk port
+!CALO vm port takes all packets and need to tell which tag is native packets
+interface $gi2
+no ip address
+switchport mode trunk
+switchport trunk native vlan $mgtVLAN
+!switchport trunk allowed vlan $mgtVLAN //use in other case
+no shutdown
+exit
+!tell default route for mgtVLAN
+ip route 0.0.0.0 0.0.0.0 $mgtGateway
+
+!enable ssh connection
+line vty 0 15
+transport input ssh
+login local
+exit
+
+!config country code
+ap dot11 5ghz shutdown
+ap dot11 24ghz shutdown
+ap country $country
+
+!certificate for AP join
+wireless management interface vlan $mgtVLAN
+wireless config vwlc-ssc key-size 2048 signature-algo sha256 password 0 $passCert
+!show wireless mangement interface trustpoint to verify
+!now, verify to ping mgtIP, spIP, and access to https://<mgtIP> or <spIP>
+
+
+
+##Case:
+#Base - factory setting
+#Declaration
+#Script

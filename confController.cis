@@ -1,0 +1,135 @@
+
+################### BASIC CMDS
+#init controller
+Management IP, subnet, default gw: $mgtIP //to discover the controller
+Vlan tagged:  1115 //example as mgt VLAN tag connecting to the trunk port at switch
+If Untagged: 0
+Vitual IP: 192.0.2.1 //
+Multicast 239.x.x.x //multicast
+Bridging enable: yes
+NTP server: no
+Radius server: no
+Country code: US
+802.11b: 
+802.11a
+
+#AirOS controllers cmds 2504, 3504
+show interface detailed management //show mgt info
+config wlan disable $wlan-number  //disable the wlan that using mgt interface
+config interface address management $mgtIP $mgtSubnet $mgtGateway
+config interface vlan management $mgtVlan //0 if untagged, recommed tagged vlan
+config interface port management primary-port
+//ref: https://www.cisco.com/c/en/us/td/docs/wireless/controller/8-3/config-guide/b_cg83/ports_and_interfaces.html
+save config 
+config interface address virtual $virtualIP
+config interface hostname virtual $hostname
+show interface detailed service-port 
+config interface dhcp service-port enable
+config interface address service-port $serviceIP $serviceSubnet
+config route add $net $netmask $gatewayIP
+config route delete ?
+config interface port management $physicalPort //IMPORTANT
+
+//Enable the mobility debugs.
+>debug mobility handoff enable
+>debug mobility error enable
+>debug mobility dtls error enable
+>debug mobility dtls event enable
+>debug mobility pmtu-discovery enable
+>debug mobility config enable
+>debug mobility directory enable
+
+
+
+#9800 -LC,-CL,-40 basic cmds
+good overall: https://www.cisco.com/c/en/us/td/docs/wireless/controller/technotes/8-8/b_c9800_wireless_controller_virtual_dg.html?referring_site=RE&pos=1&page=https://www.cisco.com/c/en/us/products/collateral/wireless/catalyst-9800-cl-wireless-controller-cloud/nb-06-cat9800-cl-cloud-wirel-data-sheet-ctp-en.html#id_91054
+
+datasheet: https://www.cisco.com/c/en/us/products/collateral/wireless/catalyst-9800-cl-wireless-controller-cloud/nb-06-cat9800-cl-cloud-wirel-data-sheet-ctp-en.html
+deployment guide: https://www.cisco.com/c/dam/en/us/products/collateral/wireless/9800-series-wireless-controllers/guide-c07-742458.pdf
+
+Noteu GigabitEthernet 1 -> Device Management interface: map it to the out of band management network
+GigabitEthernet 2 -> Wireless Management interface: map it to your network to reach APs and services. Usually this interface is a trunk to carry multiple vlans.
+GigabitEthernet 3 -> High Availability interface: map it a separated network for peer to peer communication for SSO
+
+
+
+wireless management interface $gi|$vlan   //set the mgt interface - in band
+ 
+
+
+
+#AP 2600, 3700.. basic
+
+
+
+#basic controller cmds
+config session timeout 0
+config paging disable
+sh run-config
+sh msglog
+sh traplog
+show sysinfo   
+show inventory  //show system product model, check for HA 
+show boot       //see software version
+reset system    //reboot
+show interface detailed service port
+
+################## Features, Config, Verify, & Debug
+
+### HA
+#3504 HA
+#9800 CL-CL HA
+#
+
+#config
+config interface service port dhcp
+config interface address management 
+
+#config the predownload controller
+
+
+#some command to remmeber
+config boot backup      //show the boot images and backup images of the controller
+config ap image predownload primary all| $apName  //push the ap to predownload the controller's primary image, i.e, after the controller download new version image -> become primary
+
+show ap image all   //view the ap's images: primary, backup, predownload
+reset system in HH:MM:SS image swap|no-swap reset-aps [save-config] //schedule a reboot of controllers and APs
+reset system notify-time $mins
+reset system cancel
+
+#capwap: discovery request, discovery response, DTLS tunnel, join request, join response, ap image, config request response.
+#debug capwap: license, clock, AP-Manager interface, ping wlc from AP and vice-versa
+##controller
+debug capwap events|errors enable|disable
+show ap summary
+show capwap client rbc //show the pointing controller
+
+##ap: dhcp option 43, same layer 3 broadcast subnet, priming previous joined, dns, static config
+##ap: debug, enable mode avail
+capwap ap primary-base $wlcName $wlcIP    //manually set static controller for AP  
+debug capwap client events
+no debug capwap client event
+
+#config the HA N+1 for the 2 controllers
+# controller RP port can connected through back-to-back or same-vlan
+# requirement: ctl mgtIP, ctl1 redunMgtIP, ctl2 mgtIP, ctl2 redunMgtIP -> after enable HA, then both using 1 primary mgt IP as virtual IP for all APs
+# : all IP same vlan, ssh to redund port IP, same model, same software version
+# : ap is auto switch in milisecond
+# : update/change primary one will mirroring auto push to the secondary.
+ref: https://www.cisco.com/c/en/us/td/docs/wireless/controller/8-3/config-guide/b_cg83/high_availability.html
+ref: https://www.cisco.com/c/en/us/td/docs/wireless/controller/technotes/8-1/HA_SSO_DG/High_Availability_DG.html
+
+show interface summary
+config interface redundancy-management $localIP peer-redundancy-management $peerIP
+config redundancy unit primary //set as primary
+config redundancy unit secondary //set as secondary 
+config redundancy mode sso      //IMPORTANT, enable HA, reboot required
+show redundancy summary|detail
+show interface detailed redundancy-management 
+show interface detailed redundancy-port
+reset peer-system
+
+//change the default keep alive timer
+keep-alive timer: secondary -> primary [udp 100msec]
+peer-search timer: active -> sntanby [60s]
+ 
